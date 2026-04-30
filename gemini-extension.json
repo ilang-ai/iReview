@@ -1,0 +1,6 @@
+{
+  "name": "ireview",
+  "version": "1.0.0",
+  "description": "Universal AI-to-AI code review. Any model reviews your code. Zero dependencies.",
+  "contextFile": "GEMINI.md"
+}

@@ -1,7 +1,13 @@
 ---
 name: ireview
-description: "Universal AI-to-AI code review. Send code to any model for independent review. Supports manual review command and automatic review gate on session stop."
+description: "Universal AI-to-AI code review. Route reviews to any OpenAI-compatible model. Standard and adversarial modes, multi-round tracking, auto review gate."
 version: 1.0.0
+author: ilang-ai
+license: MIT
+metadata:
+  hermes:
+    tags: [code-review, ai-to-ai, multi-model, security, quality]
+    platforms: [claude-code, cursor, codex, copilot, gemini]
 ---
 
 # iReview
@@ -11,13 +17,17 @@ version: 1.0.0
   T:zero_dependencies
   T:any_openai_compatible_api
   T:report_real_issues_only
+  T:persist_findings_to_disk
+  T:track_multi_round_resolution
   A:review_style_issues⇒noise
-  A:review_without_diff⇒pointless
+  A:review_without_changes⇒skip
   A:block_stop_on_lgtm⇒annoying
+  A:send_diff_over_500_lines⇒summarize_instead
+  A:lose_review_results⇒always_save_to_file
 
 ## Config
 
-iReview reads `.ireview.json` from project root:
+`.ireview.json` in project root:
 
 ```json
 {
@@ -29,82 +39,36 @@ iReview reads `.ireview.json` from project root:
 }
 ```
 
-Fallback: environment variables `IREVIEW_MODEL`, `IREVIEW_API_KEY`, `IREVIEW_BASE_URL`.
+Fallback: env vars `IREVIEW_MODEL`, `IREVIEW_API_KEY`, `IREVIEW_BASE_URL`.
 
-### Model examples
+### Model quick reference
 
-Users can use ANY OpenAI-compatible API. Common setups:
+| Provider | model | base_url | Cost |
+|---|---|---|---|
+| OpenRouter (any model) | `deepseek/deepseek-chat` | `https://openrouter.ai/api/v1` | Varies |
+| DeepSeek direct | `deepseek-chat` | `https://api.deepseek.com/v1` | Cheapest |
+| OpenAI direct | `gpt-4o` | `https://api.openai.com/v1` | $$$ |
+| Google Gemini | `google/gemini-2.5-pro` | `https://openrouter.ai/api/v1` | $$ |
+| Local Ollama | `llama3` | `http://localhost:11434/v1` | Free |
 
-**OpenRouter (recommended — one key, all models):**
-```json
-{
-  "model": "deepseek/deepseek-chat",
-  "api_key": "sk-or-v1-xxx",
-  "base_url": "https://openrouter.ai/api/v1"
-}
-```
-
-**DeepSeek direct:**
-```json
-{
-  "model": "deepseek-chat",
-  "api_key": "sk-xxx",
-  "base_url": "https://api.deepseek.com/v1"
-}
-```
-
-**OpenAI direct:**
-```json
-{
-  "model": "gpt-4o",
-  "api_key": "sk-xxx",
-  "base_url": "https://api.openai.com/v1"
-}
-```
-
-**Google Gemini (via OpenRouter):**
-```json
-{
-  "model": "google/gemini-2.5-pro",
-  "api_key": "sk-or-v1-xxx",
-  "base_url": "https://openrouter.ai/api/v1"
-}
-```
-
-**Local Ollama:**
-```json
-{
-  "model": "llama3",
-  "api_key": "ollama",
-  "base_url": "http://localhost:11434/v1"
-}
-```
+Change model = change one line. That's it.
 
 ### Focus options
 
-`focus` array controls what the reviewer looks for:
-
-| Focus | What it checks |
+| Focus | Looks for |
 |---|---|
 | `bugs` | Logic errors, off-by-one, null refs, race conditions |
-| `security` | Injection, auth bypass, secrets in code, unsafe deserialization |
-| `performance` | N+1 queries, unnecessary allocations, missing indexes |
-| `architecture` | Separation of concerns, coupling, API design |
+| `security` | Injection, auth bypass, secrets in code, SSRF |
+| `performance` | N+1 queries, unnecessary allocations, blocking I/O |
+| `architecture` | Coupling, responsibility leaks, API surface issues |
 | `types` | Type safety, missing null checks, implicit conversions |
-| `tests` | Missing test coverage, untested edge cases |
+| `tests` | Missing coverage, untested edge cases, flaky patterns |
 
 Default: `["bugs", "security"]`
 
-## Manual Review
+## API Call Pattern
 
-When user says "review this", "check my code", "review the diff", or similar:
-
-1. Read `.ireview.json` for config.
-2. Get the diff:
-   - If user specifies files: review those files only.
-   - If user says "review my changes": run `git diff HEAD`.
-   - If user says "review this branch": run `git diff main...HEAD`.
-3. Call the external model:
+For all review types, construct and execute:
 
 ```bash
 curl -s "${base_url}/chat/completions" \
@@ -113,63 +77,84 @@ curl -s "${base_url}/chat/completions" \
   -d "{
     \"model\": \"${model}\",
     \"messages\": [
-      {\"role\": \"system\", \"content\": \"You are a senior code reviewer. Review the following code diff. Focus on: ${focus}. Rules: report only real issues, not style preferences. Be concise. Each issue: file, line, severity (critical/warning/info), description, suggested fix. If no issues: respond with exactly LGTM.\"},
-      {\"role\": \"user\", \"content\": \"${diff}\"}
+      {\"role\": \"system\", \"content\": \"${SYSTEM_PROMPT}\"},
+      {\"role\": \"user\", \"content\": \"${DIFF_OR_SUMMARY}\"}
     ],
     \"temperature\": 0.1
   }"
 ```
 
-4. Parse and present results. If issues found, offer to fix them.
+Response is in `data.choices[0].message.content`.
 
-## Auto Review Gate
+If API call fails (timeout, auth error, rate limit): report the error clearly, do NOT retry automatically, suggest user check their config.
 
-When `auto_review: true` in config, the Stop hook triggers automatically:
+## Diff Size Protection
 
-- Gets `git diff HEAD` on every stop.
-- If no changes: skip silently.
-- If changes exist: send to configured model for review.
-- If `LGTM`: allow stop.
-- If issues found: report them, suggest fixes, continue session.
+- Under 500 lines: send full diff.
+- 500-2000 lines: send file-by-file, skip test files and generated files.
+- Over 2000 lines: send only file names + change stats (`git diff --stat`), ask user which files to review in detail.
 
-Warning: auto_review can increase API costs. Use for important sessions only.
+## Review Persistence
 
-## Output Format
+ALL review results saved to `.ireview/reviews/`:
 
-Review results are presented as:
-
+```markdown
+# iReview — [model] — [YYYY-MM-DD HH:MM]
+## Mode: standard | adversarial
+## Files: [list]
+## Previous: [reference to prior review if multi-round]
+## Findings:
+- [CRITICAL] file:line — description — fix
+- [WARNING] file:line — description — fix
+- LGTM
 ```
-═══ iReview ═══ [model-name]
 
-🔴 CRITICAL: [file:line] description
-   Fix: suggestion
+## Multi-Round Tracking
 
-🟡 WARNING: [file:line] description
-   Fix: suggestion
-
-🟢 LGTM — no issues found
-
-═══ end ═══
-```
+When running a follow-up review:
+1. Read most recent review from `.ireview/reviews/`.
+2. Add to system prompt: "Previous review found: [findings]. Check if each was addressed. Mark as RESOLVED, STILL_OPEN, or NEW."
+3. Save new review referencing the previous one.
 
 ## Multi-Model Review
 
-Users can create multiple config files for different reviewers:
+User can create `.ireview-{name}.json` files for specialized reviewers:
 
 ```bash
-# Security review with GPT
-cat > .ireview-security.json << EOF
-{"model":"gpt-4o","api_key":"sk-xxx","base_url":"https://api.openai.com/v1","focus":["security"]}
-EOF
-
-# Performance review with DeepSeek
-cat > .ireview-perf.json << EOF
-{"model":"deepseek-chat","api_key":"sk-xxx","base_url":"https://api.deepseek.com/v1","focus":["performance"]}
-EOF
+# .ireview-security.json → GPT for security
+# .ireview-perf.json → DeepSeek for performance
+# .ireview-arch.json → Gemini for architecture
 ```
 
-User says "review security with .ireview-security.json" → use that config.
-User says "full review" → run all .ireview-*.json configs sequentially.
+`/ireview --full` runs all configs sequentially. Each produces its own review file.
+
+## Output Format
+
+```
+═══ iReview ═══ [model-name] ═══
+
+🔴 CRITICAL: file:line — description
+   Fix: suggestion
+
+🟡 WARNING: file:line — description
+   Fix: suggestion
+
+ℹ️  INFO: file:line — description
+
+── or ──
+
+✅ LGTM — no issues found
+
+═══ [N findings saved to .ireview/reviews/] ═══
+```
+
+## Transparency
+
+When presenting review results:
+- Always show which model performed the review.
+- Always show how many lines/files were reviewed.
+- If diff was summarized due to size, say so.
+- Never claim the review is exhaustive. Say "external review" not "complete audit".
 
 ---
 

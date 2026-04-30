@@ -2,6 +2,9 @@
 .ireview.json
 .ireview-*.json
 
+# Review state and results (user-specific)
+.ireview/
+
 # OS
 .DS_Store
 Thumbs.db

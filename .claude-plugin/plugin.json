@@ -2,21 +2,27 @@
   "name": "ireview",
   "displayName": "iReview",
   "version": "1.0.0",
-  "description": "Universal AI-to-AI code review. Any model reviews your code — DeepSeek, GPT, Gemini, Llama, or any OpenAI-compatible API. Zero dependencies, zero CLI installs. Just set your API key and model.",
+  "description": "Universal AI-to-AI code review. Any model reviews your code — DeepSeek, GPT, Gemini, Llama, or local Ollama. Zero dependencies. One JSON config.",
   "author": {
     "name": "I-Lang Protocol",
     "url": "https://github.com/ilang-ai/iReview"
   },
   "license": "MIT",
   "homepage": "https://github.com/ilang-ai/iReview",
+  "repository": "https://github.com/ilang-ai/iReview",
   "hooks": {
     "SessionStart": [
       {
         "matcher": "*",
         "hooks": [
           {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/load-config.sh",
+            "timeout": 5
+          },
+          {
             "type": "prompt",
-            "prompt": "iReview active. Read .ireview.json if it exists (model, api_key, base_url, focus, auto_review). If no config file, check environment variables: IREVIEW_MODEL, IREVIEW_API_KEY, IREVIEW_BASE_URL. If neither exists, tell user: 'iReview needs a config. Run: echo '{\"model\":\"deepseek/deepseek-chat\",\"api_key\":\"YOUR_KEY\",\"base_url\":\"https://openrouter.ai/api/v1\",\"focus\":[\"bugs\",\"security\"],\"auto_review\":false}' > .ireview.json' Do NOT mention this setup if config already exists. Just silently load it.",
+            "prompt": "iReview loaded. If script output says 'No config found', tell user once: 'iReview needs a config — run: cp .ireview.example.json .ireview.json then edit model and api_key.' Otherwise, stay silent. Check .ireview/reviews/ for unresolved findings from previous sessions and mention them briefly.",
             "timeout": 10
           }
         ]
@@ -27,9 +33,26 @@
         "matcher": "*",
         "hooks": [
           {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.sh",
+            "timeout": 5
+          },
+          {
             "type": "prompt",
-            "prompt": "iReview Stop gate. Check .ireview.json — if auto_review is false or config missing, skip silently. If auto_review is true: 1) Run 'git diff HEAD' to get changed files. If no changes, skip. 2) Read the iReview skill from skills/ireview/SKILL.md for review protocol. 3) Send the diff to the configured model via curl to base_url/chat/completions with the api_key. System prompt: 'You are a code reviewer. Review this diff. Report only real bugs, security issues, and logic errors. Ignore style. Be concise. If no issues found, respond with exactly: LGTM'. 4) If response is 'LGTM', allow stop. If issues found, report them and suggest fixes before stopping.",
-            "timeout": 60
+            "prompt": "iReview stop gate triggered. Read .ireview/state.json. If status=pending: get the diff with 'git diff HEAD', read .ireview.json for config, then call the review API per skills/ireview/SKILL.md instructions. If diff exceeds 500 lines, summarize changes by file instead of sending full diff. Save results to .ireview/reviews/review-$(date +%s).md. If critical issues found, report them and suggest fixes. If LGTM, allow stop. If state.json missing or status!=pending, allow stop silently.",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Context compacting. If any review is in progress, save current findings to .ireview/reviews/ before compaction.",
+            "timeout": 15
           }
         ]
       }
