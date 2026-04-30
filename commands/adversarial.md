@@ -7,10 +7,13 @@ Devil's advocate review. The external model challenges design decisions, questio
 Same as `/ireview:review` but pass `--mode adversarial` to the script:
 
 ```bash
+mkdir -p .ireview/tmp
+git diff HEAD > .ireview/tmp/current.diff
+
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py \
   --config .ireview.json \
   --mode adversarial \
-  --diff "$(git diff HEAD)"
+  --diff-file .ireview/tmp/current.diff
 ```
 
 ## Output format

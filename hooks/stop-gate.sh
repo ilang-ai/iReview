@@ -20,8 +20,12 @@ grep -q '"auto_review"[[:space:]]*:[[:space:]]*true' "$CONFIG" 2>/dev/null || ex
 CHANGED=$(git diff HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
 [ "$CHANGED" -eq 0 ] && exit 0
 
-# Compute diff hash
-DIFF_HASH=$(git diff HEAD 2>/dev/null | sha256sum | awk '{print $1}')
+# Compute diff hash (cross-platform)
+if command -v sha256sum >/dev/null 2>&1; then
+  DIFF_HASH=$(git diff HEAD 2>/dev/null | sha256sum | awk '{print $1}')
+else
+  DIFF_HASH=$(git diff HEAD 2>/dev/null | shasum -a 256 | awk '{print $1}')
+fi
 
 # Check if this exact diff was already reviewed and passed
 if [ -f "$STATE_FILE" ]; then

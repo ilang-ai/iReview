@@ -13,10 +13,13 @@ Run an independent code review using an external AI model.
 4. Run the review script:
 
 ```bash
+mkdir -p .ireview/tmp
+git diff HEAD > .ireview/tmp/current.diff
+
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py \
   --config .ireview.json \
   --mode standard \
-  --diff "$(git diff HEAD)"
+  --diff-file .ireview/tmp/current.diff
 ```
 
 5. Read the script output (JSON). Parse findings.
