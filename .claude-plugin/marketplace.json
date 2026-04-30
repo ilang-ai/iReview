@@ -1,0 +1,15 @@
+{
+  "name": "ilang-plugins",
+  "owner": {
+    "name": "I-Lang Protocol",
+    "email": "hello@ilang.ai"
+  },
+  "plugins": [
+    {
+      "name": "ireview",
+      "source": ".",
+      "description": "Universal AI-to-AI code review. Any model reviews your code. Zero dependencies.",
+      "version": "1.0.0"
+    }
+  ]
+}

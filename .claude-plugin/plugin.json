@@ -1,0 +1,38 @@
+{
+  "name": "ireview",
+  "displayName": "iReview",
+  "version": "1.0.0",
+  "description": "Universal AI-to-AI code review. Any model reviews your code — DeepSeek, GPT, Gemini, Llama, or any OpenAI-compatible API. Zero dependencies, zero CLI installs. Just set your API key and model.",
+  "author": {
+    "name": "I-Lang Protocol",
+    "url": "https://github.com/ilang-ai/iReview"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/ilang-ai/iReview",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "iReview active. Read .ireview.json if it exists (model, api_key, base_url, focus, auto_review). If no config file, check environment variables: IREVIEW_MODEL, IREVIEW_API_KEY, IREVIEW_BASE_URL. If neither exists, tell user: 'iReview needs a config. Run: echo '{\"model\":\"deepseek/deepseek-chat\",\"api_key\":\"YOUR_KEY\",\"base_url\":\"https://openrouter.ai/api/v1\",\"focus\":[\"bugs\",\"security\"],\"auto_review\":false}' > .ireview.json' Do NOT mention this setup if config already exists. Just silently load it.",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "iReview Stop gate. Check .ireview.json — if auto_review is false or config missing, skip silently. If auto_review is true: 1) Run 'git diff HEAD' to get changed files. If no changes, skip. 2) Read the iReview skill from skills/ireview/SKILL.md for review protocol. 3) Send the diff to the configured model via curl to base_url/chat/completions with the api_key. System prompt: 'You are a code reviewer. Review this diff. Report only real bugs, security issues, and logic errors. Ignore style. Be concise. If no issues found, respond with exactly: LGTM'. 4) If response is 'LGTM', allow stop. If issues found, report them and suggest fixes before stopping.",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

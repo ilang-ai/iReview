@@ -1,0 +1,7 @@
+# User config (contains API keys)
+.ireview.json
+.ireview-*.json
+
+# OS
+.DS_Store
+Thumbs.db
