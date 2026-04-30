@@ -1,6 +1,8 @@
 # /ireview:adversarial — Adversarial Code Review
 
-Devil's advocate review. The external model challenges design decisions, questions assumptions, and probes failure modes.
+Devil's advocate review via I-Lang protocol. The external model challenges design decisions, questions assumptions, and probes failure modes.
+
+Protocol: `[EVAL:@DIFF|depth=adversarial]=>[SCAN|whr=assumptions,failure_modes]=>[CLSF]=>[OUT]`
 
 ## Steps
 

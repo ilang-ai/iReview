@@ -17,25 +17,60 @@ import urllib.error
 
 SYSTEM_PROMPTS = {
     "standard": (
-        "You are a senior code reviewer. Review the following code changes. "
-        "Focus areas: {focus}. "
-        "Rules: report only real issues — bugs, security holes, logic errors, "
-        "missing edge cases. Do NOT report style preferences or formatting. "
-        "Respond in JSON format only, no markdown, no preamble: "
-        '{{"findings": [{{"severity": "critical|warning|info", "file": "path", '
-        '"line": 0, "title": "short description", "fix": "suggestion"}}], '
-        '"decision": "pass|fail"}}'
+        "[PROTOCOL:I-Lang|v=3.0]\n"
+        "\n"
+        "[EVAL:@DIFF|focus={focus}|depth=thorough]\n"
+        "  =>[SCAN|whr=bugs,security,logic_errors]\n"
+        "  =>[CLSF|typ=severity]\n"
+        "  =>[FMT|fmt=ilang]\n"
+        "  =>[OUT]\n"
+        "\n"
+        "::RULE{{report:bugs,security,logic_errors,edge_cases}}\n"
+        "::RULE{{ignore:style,formatting,naming_conventions}}\n"
+        "::RULE{{severity:critical|when:production_breakage|when:security_vulnerability|when:data_loss}}\n"
+        "::RULE{{severity:warning|when:potential_bug|when:missing_edge_case|when:race_condition}}\n"
+        "::RULE{{severity:info|when:minor_improvement}}\n"
+        "::RULE{{if:no_issues|then:decision=pass}}\n"
+        "\n"
+        "::FMT{{response}}\n"
+        "  Respond ONLY in this exact format, no other text:\n"
+        "\n"
+        "  ::REVIEW{{id:TIMESTAMP|model:MODEL|decision:pass_or_fail}}\n"
+        "  ::FINDING{{id:IR-001|severity:critical_or_warning_or_info|file:path/to/file|line:N}}\n"
+        "    issue: one line description\n"
+        "    fix: one line suggestion\n"
+        "  ::END{{REVIEW}}\n"
+        "\n"
+        "  If no issues: ::REVIEW{{id:TIMESTAMP|model:MODEL|decision:pass}} LGTM ::END{{REVIEW}}"
     ),
     "adversarial": (
-        "You are an adversarial code reviewer — a skeptical senior engineer "
-        "who has seen production outages caused by code exactly like this. "
-        "Your job is to BREAK. For every change, ask: What assumption could "
-        "be wrong? What happens under 10x load? Is there a simpler approach? "
-        "Where is the implicit coupling? Focus areas: {focus}. "
-        "Respond in JSON format only, no markdown, no preamble: "
-        '{{"findings": [{{"severity": "critical|challenge|alternative", '
-        '"file": "path", "line": 0, "title": "short description", '
-        '"fix": "suggestion"}}], "decision": "pass|fail"}}'
+        "[PROTOCOL:I-Lang|v=3.0]\n"
+        "\n"
+        "[EVAL:@DIFF|focus={focus}|depth=adversarial]\n"
+        "  =>[SCAN|whr=assumptions,failure_modes,coupling,hidden_risks]\n"
+        "  =>[CLSF|typ=severity]\n"
+        "  =>[FMT|fmt=ilang]\n"
+        "  =>[OUT]\n"
+        "\n"
+        "::RULE{{mode:adversarial}}\n"
+        "::RULE{{challenge:design_decisions,assumptions,tradeoffs}}\n"
+        "::RULE{{probe:10x_load,malicious_input,implicit_coupling,failure_without_recovery}}\n"
+        "::RULE{{suggest:simpler_alternatives}}\n"
+        "::RULE{{severity:critical|when:will_break_production}}\n"
+        "::RULE{{severity:challenge|when:design_needs_justification}}\n"
+        "::RULE{{severity:alternative|when:simpler_approach_exists}}\n"
+        "::RULE{{if:genuinely_no_issues|then:decision=pass}}\n"
+        "\n"
+        "::FMT{{response}}\n"
+        "  Respond ONLY in this exact format, no other text:\n"
+        "\n"
+        "  ::REVIEW{{id:TIMESTAMP|model:MODEL|mode:adversarial|decision:pass_or_fail}}\n"
+        "  ::FINDING{{id:IR-001|severity:critical_or_challenge_or_alternative|file:path/to/file|line:N}}\n"
+        "    issue: one line description\n"
+        "    fix: one line suggestion\n"
+        "  ::END{{REVIEW}}\n"
+        "\n"
+        "  If no issues: ::REVIEW{{id:TIMESTAMP|model:MODEL|decision:pass}} LGTM ::END{{REVIEW}}"
     ),
 }
 
@@ -47,14 +82,77 @@ def load_config(config_path):
         print(json.dumps({"error": f"Config error: {e}"}))
         sys.exit(1)
 
+def parse_ilang_response(content):
+    """Parse I-Lang format response (::REVIEW, ::FINDING, ::END)."""
+    import re
+
+    result = {"findings": [], "decision": "unknown", "format": "ilang"}
+
+    # Extract ::REVIEW header
+    review_match = re.search(r'::REVIEW\{([^}]+)\}', content)
+    if review_match:
+        attrs = review_match.group(1)
+        for pair in attrs.split('|'):
+            if ':' in pair:
+                k, v = pair.split(':', 1)
+                if k.strip() == 'decision':
+                    result["decision"] = v.strip()
+                elif k.strip() == 'model':
+                    result["review_model"] = v.strip()
+                elif k.strip() == 'mode':
+                    result["review_mode"] = v.strip()
+
+    # Extract ::FINDING blocks
+    finding_pattern = re.compile(
+        r'::FINDING\{([^}]+)\}\s*\n(.*?)(?=::FINDING|::END|$)',
+        re.DOTALL
+    )
+    for match in finding_pattern.finditer(content):
+        attrs_str = match.group(1)
+        body = match.group(2).strip()
+
+        finding = {}
+        for pair in attrs_str.split('|'):
+            if ':' in pair:
+                k, v = pair.split(':', 1)
+                finding[k.strip()] = v.strip()
+
+        # Parse body lines (issue: / fix:)
+        for line in body.split('\n'):
+            line = line.strip()
+            if line.startswith('issue:'):
+                finding['title'] = line[6:].strip()
+            elif line.startswith('fix:'):
+                finding['fix'] = line[4:].strip()
+
+        if finding:
+            result["findings"].append(finding)
+
+    # LGTM check
+    if not result["findings"] and 'LGTM' in content.upper():
+        result["decision"] = "pass"
+
+    # If we found a ::REVIEW but no findings and no LGTM, decision stays as parsed
+    if result["decision"] == "unknown" and result["findings"]:
+        has_critical = any(f.get("severity") == "critical" for f in result["findings"])
+        result["decision"] = "fail" if has_critical else "pass"
+
+    return result if review_match else None
+
+
 def call_api(config, system_prompt, diff_content):
     base_url = config.get("base_url", "https://openrouter.ai/api/v1").rstrip("/")
-    api_key = config.get("api_key") or os.environ.get("IREVIEW_API_KEY", "")
+    api_key = (
+        os.environ.get("CLAUDE_PLUGIN_OPTION_API_KEY")
+        or os.environ.get(config.get("api_key_env", ""), "")
+        or os.environ.get("IREVIEW_API_KEY", "")
+        or config.get("api_key", "")
+    )
     model = config.get("model", "deepseek/deepseek-chat")
     timeout = config.get("timeout_sec", 120)
 
     if not api_key:
-        return {"error": "No API key. Set api_key in .ireview.json or IREVIEW_API_KEY env var."}
+        return {"error": "No API key. Set api_key in config, IREVIEW_API_KEY env var, or use /ireview:setup."}
 
     payload = json.dumps({
         "model": model,
@@ -81,17 +179,26 @@ def call_api(config, system_prompt, diff_content):
             data = json.loads(resp.read().decode("utf-8"))
             content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-            # Try to parse as JSON
+            # Try I-Lang format first (::REVIEW ... ::END)
+            ilang_result = parse_ilang_response(content)
+            if ilang_result:
+                return ilang_result
+
+            # Fallback: try JSON
             try:
-                content = content.strip()
-                if content.startswith("```"):
-                    content = content.split("\n", 1)[1].rsplit("```", 1)[0]
-                return json.loads(content)
+                clean = content.strip()
+                if clean.startswith("```"):
+                    clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
+                result = json.loads(clean)
+                result["format"] = "json"
+                return result
             except json.JSONDecodeError:
-                # Model returned non-JSON, wrap it
-                if "LGTM" in content.upper():
-                    return {"findings": [], "decision": "pass"}
-                return {"raw_response": content, "decision": "unknown"}
+                pass
+
+            # Fallback: plain text
+            if "LGTM" in content.upper():
+                return {"findings": [], "decision": "pass", "format": "text"}
+            return {"raw_response": content, "decision": "unknown", "format": "text"}
 
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")[:500]

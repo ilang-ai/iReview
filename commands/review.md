@@ -1,6 +1,8 @@
 # /ireview:review — Standard Code Review
 
 Run an independent code review using an external AI model.
+Communication between models uses I-Lang v3.0 protocol:
+`[EVAL:@DIFF]=>[SCAN]=>[CLSF]=>[FMT|fmt=ilang]=>[OUT]`
 
 ## Steps
 
@@ -22,26 +24,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py \
   --diff-file .ireview/tmp/current.diff
 ```
 
-5. Read the script output (JSON). Parse findings.
-6. Save results to `.ireview/reviews/YYYYMMDD-HHMMSS.json` and `.md`.
-7. Update `.ireview/state.json`: set phase to `passed` or `failed`.
-8. Present findings:
-
-```
-═══ iReview ═══ [model] ═══
-
-🔴 CRITICAL: file:line — description
-   Fix: suggestion
-
-🟡 WARNING: file:line — description
-   Fix: suggestion
-
-✅ LGTM — no issues found
-
-═══ [saved to .ireview/reviews/] ═══
-```
-
-9. If critical issues found, offer to fix them.
+5. The script sends I-Lang instructions to the external model.
+   Model returns I-Lang declarations: `::REVIEW{}`, `::FINDING{}`, `::END{REVIEW}`.
+6. Parse findings. Save to `.ireview/reviews/`.
+7. Update `.ireview/state.json`: phase=passed or phase=failed.
+8. Present findings to user in human-readable format. Offer to fix critical issues.
 
 ## Arguments
 

@@ -1,7 +1,7 @@
 # iReview
 
-> **Universal AI-to-AI code review. Any model. Zero CLI installs.**
-> DeepSeek, GPT, Gemini, Llama, local Ollama — one JSON config, one command.
+> **AI-to-AI code review, powered by I-Lang protocol.**
+> Any model reviews your code. Structured instructions in, structured findings out.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v3.0-d4a858?style=flat-square)](https://ilang.ai)
@@ -10,9 +10,25 @@
 
 ## Why
 
-OpenAI's Codex plugin reviews Claude Code output. But it requires Codex CLI, ChatGPT login, Node.js 18.18+, and only works with OpenAI models.
+Every AI-to-AI code review tool today sends English prose between models. "You are a senior code reviewer. Please review this diff..." — and the response is unstructured text that has to be guessed and parsed.
 
-iReview does the same thing with **one JSON config file**. Any model. Any OpenAI-compatible API.
+iReview uses **I-Lang v3.0** as the communication protocol between models. Claude Code sends structured instructions:
+
+```ilang
+[EVAL:@DIFF|focus=security,bugs]=>[SCAN]=>[CLSF|typ=severity]=>[OUT]
+```
+
+The review model returns structured declarations:
+
+```ilang
+::REVIEW{id:20260430|model:deepseek-chat|decision:fail}
+::FINDING{id:IR-001|severity:critical|file:src/auth.ts|line:42}
+  issue: JWT token accessed before validation
+  fix: Add token.verify() before accessing claims
+::END{REVIEW}
+```
+
+Two AIs speaking a protocol. Not prose. Not guesswork. Parseable, repeatable, model-agnostic.
 
 | | iReview | codex-plugin-cc |
 |---|---|---|
@@ -104,13 +120,19 @@ echo '{"model":"deepseek-chat","api_key":"sk-xxx","base_url":"https://api.deepse
 ## Architecture
 
 ```
-hooks/stop-gate.sh     ← Fast. Checks diff, computes hash, blocks or allows. No API calls.
-scripts/call-api.py    ← Reliable. Constructs JSON safely, calls API, returns structured results.
-commands/*.md           ← Slash commands. Tell Claude what to do step by step.
-skills/ireview/SKILL.md ← Protocol. I-Lang behavioral rules for the review process.
+You ──→ Claude Code ──I-Lang──→ Review Model ──I-Lang──→ Claude Code ──→ You
+         (implementer)           (reviewer)              (presents findings)
 ```
 
-API calls go through `call-api.py`, never through hand-written curl JSON. Diffs contain quotes, backslashes, and newlines that break manual JSON construction.
+```
+hooks/stop-gate.sh     ← Fast gating. Checks diff hash, blocks or allows.
+scripts/call-api.py    ← I-Lang protocol layer. Sends I-Lang instructions,
+                         parses I-Lang responses. Falls back to JSON/text.
+commands/*.md           ← Slash commands. Orchestrate the review flow.
+skills/ireview/SKILL.md ← Protocol definition. I-Lang request/response formats.
+```
+
+The key insight: API calls go through `call-api.py` which sends I-Lang instructions as system prompts and parses `::REVIEW{}`/`::FINDING{}` responses. Models that understand I-Lang return structured declarations. Models that don't return JSON or text, and the script handles the fallback. Either way, the protocol is the interface.
 
 ## Works Across Tools
 
