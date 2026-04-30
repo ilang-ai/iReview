@@ -2,7 +2,7 @@
   "name": "ireview",
   "displayName": "iReview",
   "version": "0.1.0",
-  "description": "Universal AI-to-AI code review. Any model reviews your code. Zero CLI installs. One JSON config.",
+  "description": "AI-to-AI code review router. Any OpenAI-compatible model reviews your code. No Codex CLI or Node.js required.",
   "author": {
     "name": "I-Lang Protocol",
     "url": "https://github.com/ilang-ai/iReview"
@@ -22,11 +22,10 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/load-config.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/load-config.sh\"",
             "timeout": 5
           }
         ]
@@ -34,11 +33,10 @@
     ],
     "Stop": [
       {
-        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.sh\"",
             "timeout": 10
           }
         ]

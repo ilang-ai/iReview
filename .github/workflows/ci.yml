@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON
+        run: |
+          python3 -m json.tool .claude-plugin/plugin.json >/dev/null
+          python3 -m json.tool .ireview.example.json >/dev/null
+          python3 -m json.tool gemini-extension.json >/dev/null
+
+      - name: Validate Shell
+        run: |
+          bash -n hooks/stop-gate.sh
+          bash -n scripts/load-config.sh
+          bash -n scripts/ireview.sh
+
+      - name: Validate Python
+        run: |
+          python3 -m py_compile scripts/call-api.py
+
+      - name: Validate gitignore
+        run: |
+          mkdir -p .ireview/reviews
+          touch .ireview.json .ireview/reviews/test.json
+          git check-ignore -v .ireview.json
+          git check-ignore -v .ireview/reviews/test.json

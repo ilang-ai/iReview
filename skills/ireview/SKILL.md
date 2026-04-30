@@ -116,7 +116,7 @@ LGTM
 
 ## Protocol: State Format
 
-Review state is tracked as I-Lang declarations in `.ireview/state.ilang`:
+Review state is tracked in `.ireview/state.json`:
 
 ```ilang
 ::STATE{review|phase:requested|diff_hash:abc123|files_changed:3|created:2026-04-30T15:30:12Z}

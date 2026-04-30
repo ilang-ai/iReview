@@ -1,51 +1,53 @@
-#!/bin/bash
-# iReview stop gate — lightweight, fast, deterministic
-# Exit 0 = allow stop | Exit 2 = block stop (message via stderr)
+#!/usr/bin/env bash
 set -uo pipefail
+
+# Read stdin JSON to check stop_hook_active (prevents infinite loop)
+INPUT="$(cat 2>/dev/null || true)"
+if command -v python3 >/dev/null 2>&1; then
+  ACTIVE="$(printf '%s' "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('stop_hook_active',False))" 2>/dev/null || echo "False")"
+  if [ "$ACTIVE" = "True" ]; then
+    exit 0
+  fi
+fi
 
 CONFIG=".ireview.json"
 STATE_DIR=".ireview"
 STATE_FILE="$STATE_DIR/state.json"
 
-# Not a git repo → allow
+# Not a git repo? Let it go
 git rev-parse --show-toplevel >/dev/null 2>&1 || exit 0
 
-# No config → allow
+# No config? Let it go
 [ -f "$CONFIG" ] || exit 0
 
-# Check auto_review (pure bash, no python)
+# Auto review not enabled? Let it go
 grep -q '"auto_review"[[:space:]]*:[[:space:]]*true' "$CONFIG" 2>/dev/null || exit 0
 
-# Check for changes (tracked + staged)
-CHANGED=$(git diff HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
-[ "$CHANGED" -eq 0 ] && exit 0
+# No changes? Let it go
+CHANGED="$(git diff HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')"
+[ "${CHANGED:-0}" -eq 0 ] && exit 0
 
-# Compute diff hash (cross-platform)
+# Compute diff hash
 if command -v sha256sum >/dev/null 2>&1; then
-  DIFF_HASH=$(git diff HEAD 2>/dev/null | sha256sum | awk '{print $1}')
+  DIFF_HASH="$(git diff HEAD 2>/dev/null | sha256sum | awk '{print $1}')"
 else
-  DIFF_HASH=$(git diff HEAD 2>/dev/null | shasum -a 256 | awk '{print $1}')
+  DIFF_HASH="$(git diff HEAD 2>/dev/null | shasum -a 256 | awk '{print $1}')"
 fi
 
-# Check if this exact diff was already reviewed and passed
-if [ -f "$STATE_FILE" ]; then
-  PREV_HASH=$(grep -o '"diff_hash"[[:space:]]*:[[:space:]]*"[^"]*"' "$STATE_FILE" 2>/dev/null | grep -o '"[^"]*"$' | tr -d '"')
-  PREV_PHASE=$(grep -o '"phase"[[:space:]]*:[[:space:]]*"[^"]*"' "$STATE_FILE" 2>/dev/null | grep -o '"[^"]*"$' | tr -d '"')
-
-  # Same diff already passed → allow stop
-  if [ "$PREV_HASH" = "$DIFF_HASH" ] && [ "$PREV_PHASE" = "passed" ]; then
-    exit 0
-  fi
-
-  # Same diff already reviewing or cancelled → allow stop
-  if [ "$PREV_HASH" = "$DIFF_HASH" ] && [ "$PREV_PHASE" = "cancelled" ]; then
-    exit 0
-  fi
-fi
-
-# Block stop — write state atomically
 mkdir -p "$STATE_DIR"
-TMP=$(mktemp)
+
+# Already reviewed or cancelled this exact diff? Let it go
+if [ -f "$STATE_FILE" ]; then
+  PREV_HASH="$(grep -o '"diff_hash"[[:space:]]*:[[:space:]]*"[^"]*"' "$STATE_FILE" 2>/dev/null | head -1 | sed 's/.*: *"//; s/"$//')"
+  PREV_PHASE="$(grep -o '"phase"[[:space:]]*:[[:space:]]*"[^"]*"' "$STATE_FILE" 2>/dev/null | head -1 | sed 's/.*: *"//; s/"$//')"
+
+  if [ "$PREV_HASH" = "$DIFF_HASH" ] && { [ "$PREV_PHASE" = "passed" ] || [ "$PREV_PHASE" = "cancelled" ]; }; then
+    exit 0
+  fi
+fi
+
+# Write state: review requested
+TMP="$(mktemp)"
 cat > "$TMP" << EOF
 {
   "phase": "requested",
@@ -56,6 +58,5 @@ cat > "$TMP" << EOF
 EOF
 mv "$TMP" "$STATE_FILE"
 
-# Tell Claude what to do
-echo "iReview: $CHANGED files changed. Run /ireview:review before stopping, or /ireview:cancel to skip." >&2
+echo "iReview: $CHANGED files changed. Run /ireview:review or /ireview:cancel" >&2
 exit 2

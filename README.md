@@ -34,12 +34,12 @@ Two AIs speaking a protocol. Not prose. Not guesswork. Parseable, repeatable, mo
 |---|---|---|
 | Install | One config file | Codex CLI + ChatGPT login |
 | Models | Any OpenAI-compatible API | OpenAI only |
-| Dependencies | python3 (pre-installed everywhere) | Node.js 18.18+, Codex CLI |
-| Review modes | Standard + Adversarial | Standard + Adversarial |
+| Dependencies | Git + Bash + Python3 | Node.js 18.18+ + Codex CLI |
+| Review modes | Standard + Adversarial | Standard + Adversarial + Background |
 | Multi-model | Yes (chain security→perf→arch) | No |
-| Review tracking | Multi-round, persisted JSON | Single-round |
+| Protocol | I-Lang structured declarations | English prose |
 | Cross-tool | CC + Cursor + Codex + Copilot + Gemini | Claude Code only |
-| Stop gate | Diff-hash aware (no infinite loop) | Can loop indefinitely |
+| Stop gate | Diff-hash aware (no infinite loop) | Full state machine |
 
 ## Requirements
 
@@ -68,12 +68,14 @@ Or run `/ireview:setup` for interactive configuration.
 ```json
 {
   "model": "deepseek/deepseek-chat",
-  "api_key": "sk-or-v1-xxx",
+  "api_key": "",
   "base_url": "https://openrouter.ai/api/v1",
   "focus": ["bugs", "security"],
   "auto_review": false
 }
 ```
+
+API key priority: `CLAUDE_PLUGIN_OPTION_API_KEY` > `IREVIEW_API_KEY` env var > `api_key` field in config.
 
 | Provider | model | base_url |
 |---|---|---|
