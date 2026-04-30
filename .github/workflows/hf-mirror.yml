@@ -23,9 +23,10 @@ jobs:
           cp README.md LICENSE CLAUDE.md GEMINI.md AGENTS.md /tmp/hf-push/
           cp -r skills /tmp/hf-push/
           cp -r commands /tmp/hf-push/
+          cp -r data /tmp/hf-push/
 
           # Add HF dataset card metadata before README
-          printf '%s\n' '---' 'license: mit' 'tags:' '  - code-review' '  - ai-to-ai' '  - i-lang' '  - claude-code' '  - cursor' '  - multi-model' 'pretty_name: iReview' '---' '' > /tmp/hf-push/README.md
+          printf '%s\n' '---' 'license: mit' 'tags:' '  - code-review' '  - ai-to-ai' '  - i-lang' '  - claude-code' '  - cursor' '  - multi-model' '  - ilang-protocol' 'pretty_name: iReview - AI-to-AI Code Review Protocol' 'configs:' '  - config_name: default' '    data_files:' '      - split: train' '        path: data/*.jsonl' '---' '' > /tmp/hf-push/README.md
           cat README.md >> /tmp/hf-push/README.md
 
           cd /tmp/hf-push
