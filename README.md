@@ -5,6 +5,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v3.0-d4a858?style=flat-square)](https://ilang.ai)
+[![I-Lang L3](https://img.shields.io/badge/I--Lang-L3_Agent_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 
 ---
 
