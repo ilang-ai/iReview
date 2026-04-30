@@ -23,6 +23,11 @@ jobs:
           cp README.md LICENSE CLAUDE.md GEMINI.md AGENTS.md /tmp/hf-push/
           cp -r skills /tmp/hf-push/
           cp -r commands /tmp/hf-push/
+
+          # Add HF dataset card metadata before README
+          printf '%s\n' '---' 'license: mit' 'tags:' '  - code-review' '  - ai-to-ai' '  - i-lang' '  - claude-code' '  - cursor' '  - multi-model' 'pretty_name: iReview' '---' '' > /tmp/hf-push/README.md
+          cat README.md >> /tmp/hf-push/README.md
+
           cd /tmp/hf-push
           git init -b main
           git config user.name "ilang-ai"
