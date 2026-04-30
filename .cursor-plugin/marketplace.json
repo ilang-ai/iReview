@@ -9,7 +9,7 @@
       "name": "ireview",
       "source": ".",
       "description": "Universal AI-to-AI code review. Any model, zero dependencies, one JSON config.",
-      "version": "1.0.0"
+      "version": "0.1.0"
     }
   ]
 }

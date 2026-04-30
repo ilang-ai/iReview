@@ -1,6 +1,6 @@
 # iReview
 
-> **Universal AI-to-AI code review. Any model. Zero dependencies.**
+> **Universal AI-to-AI code review. Any model. Zero CLI installs.**
 > DeepSeek, GPT, Gemini, Llama, local Ollama — one JSON config, one command.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
@@ -10,20 +10,26 @@
 
 ## Why
 
-OpenAI's Codex plugin reviews your Claude Code output. But it requires Codex CLI, ChatGPT login, Node.js 18.18+, and only works with OpenAI models.
+OpenAI's Codex plugin reviews Claude Code output. But it requires Codex CLI, ChatGPT login, Node.js 18.18+, and only works with OpenAI models.
 
-iReview does the same thing with **zero dependencies**. One JSON config. Any model. Any OpenAI-compatible API.
+iReview does the same thing with **one JSON config file**. Any model. Any OpenAI-compatible API.
 
 | | iReview | codex-plugin-cc |
 |---|---|---|
-| Install | Copy one config file | Install Codex CLI + ChatGPT login |
-| Models | Any (DeepSeek, GPT, Gemini, Llama, Ollama) | OpenAI only |
-| Dependencies | None | Node.js 18.18+, Codex CLI |
-| Config | One `.ireview.json` | config.toml + CLI auth |
+| Install | One config file | Codex CLI + ChatGPT login |
+| Models | Any OpenAI-compatible API | OpenAI only |
+| Dependencies | python3 (pre-installed everywhere) | Node.js 18.18+, Codex CLI |
 | Review modes | Standard + Adversarial | Standard + Adversarial |
-| Multi-model | Yes (chain GPT→DeepSeek→Gemini) | No |
-| Review tracking | Multi-round, persisted to disk | Single-round |
+| Multi-model | Yes (chain security→perf→arch) | No |
+| Review tracking | Multi-round, persisted JSON | Single-round |
 | Cross-tool | CC + Cursor + Codex + Copilot + Gemini | Claude Code only |
+| Stop gate | Diff-hash aware (no infinite loop) | Can loop indefinitely |
+
+## Requirements
+
+- `python3` (for reliable JSON handling in API calls)
+- `git`
+- `curl` or `urllib` (Python stdlib)
 
 ## Install (seconds)
 
@@ -32,14 +38,14 @@ iReview does the same thing with **zero dependencies**. One JSON config. Any mod
 /plugin install ireview@ilang-plugins
 ```
 
-Then create your config:
+Create your config:
 
 ```bash
 cp .ireview.example.json .ireview.json
-# Edit: set your model and api_key
+# Set model and api_key — two fields, done
 ```
 
-Add `.ireview.json` to `.gitignore` (it contains your API key).
+Or run `/ireview:setup` for interactive configuration.
 
 ## Config
 
@@ -53,124 +59,74 @@ Add `.ireview.json` to `.gitignore` (it contains your API key).
 }
 ```
 
-### Pick your reviewer
-
-| Setup | model | base_url |
+| Provider | model | base_url |
 |---|---|---|
-| OpenRouter (one key, all models) | `deepseek/deepseek-chat` | `https://openrouter.ai/api/v1` |
-| DeepSeek direct (cheapest) | `deepseek-chat` | `https://api.deepseek.com/v1` |
+| OpenRouter (any model) | `deepseek/deepseek-chat` | `https://openrouter.ai/api/v1` |
+| DeepSeek direct | `deepseek-chat` | `https://api.deepseek.com/v1` |
 | OpenAI direct | `gpt-4o` | `https://api.openai.com/v1` |
-| Gemini via OpenRouter | `google/gemini-2.5-pro` | `https://openrouter.ai/api/v1` |
-| Local Ollama (free, private) | `llama3` | `http://localhost:11434/v1` |
+| Local Ollama | `llama3` | `http://localhost:11434/v1` |
 
-**Change model = change one line.** That's it.
-
-Or use `/ireview:setup` for interactive configuration.
+**Change model = change one line.**
 
 ## Commands
 
-### `/ireview` — Standard Review
-
 ```bash
-/ireview                     # Review uncommitted changes
-/ireview src/auth.ts         # Review specific files
-/ireview --base main         # Review branch vs main
-/ireview --config .ireview-security.json   # Use alternate config
-/ireview --full              # Run ALL .ireview-*.json configs (multi-model)
-```
-
-Output:
-
-```
-═══ iReview ═══ deepseek-chat ═══
-
-🔴 CRITICAL: src/auth.ts:42 — JWT not validated before use
-   Fix: Add token.verify() before accessing claims
-
-🟡 WARNING: src/db.ts:18 — SQL built with string concat
-   Fix: Use parameterized queries
-
-═══ 2 findings saved to .ireview/reviews/ ═══
-```
-
-### `/ireview:adversarial` — Devil's Advocate
-
-Same as `/ireview` but the reviewer actively challenges your design decisions, questions assumptions, and probes failure modes.
-
-```
-═══ iReview ═══ ADVERSARIAL ═══ gpt-4o ═══
-
-⚔️  CHALLENGE: src/cache.ts:15 — LRU cache has no TTL
-   Question: What happens when stale data is served for 24h?
-
-🔄 ALTERNATIVE: src/api.ts:30 — REST endpoint for batch ops
-   Consider: GraphQL would handle N+1 at the protocol level
-
-═══ end ═══
-```
-
-### `/ireview:status` — Track Multi-Round Fixes
-
-iReview tracks findings across review rounds. Fix issues, run `/ireview` again, and it checks whether previous findings were addressed:
-
-```
-Round 1: 6 issues found
-Round 2: 4 resolved, 2 still open, 1 new regression
-Round 3: Clean ✅
-```
-
-### `/ireview:setup` — Configure
-
-```bash
-/ireview:setup                        # Interactive setup
-/ireview:setup --enable-auto-review   # Auto-review on stop
-/ireview:setup --disable-auto-review  # Turn off auto-review
-/ireview:setup --model deepseek-chat  # Quick model switch
+/ireview:review                    # Review uncommitted changes
+/ireview:review --base main        # Review branch vs main
+/ireview:review --full             # Run all .ireview-*.json configs
+/ireview:adversarial               # Devil's advocate review
+/ireview:setup                     # Interactive configuration
+/ireview:status                    # Review history and unresolved findings
+/ireview:result                    # Show latest review details
+/ireview:cancel                    # Cancel pending review, allow stop
 ```
 
 ## Auto Review Gate
 
-Set `"auto_review": true` in config. Every time the session stops, iReview automatically reviews your changes before allowing exit. If critical issues found, the stop is blocked until you address them.
+Set `"auto_review": true` in config. When the session stops:
 
-Use for important sessions. Disable for quick tasks.
+1. Stop hook detects file changes and computes diff hash
+2. If this diff wasn't reviewed yet: blocks stop with instructions
+3. You run `/ireview:review` — review executes, results saved
+4. On next stop: diff hash matches passed review — stop allowed
+
+**No infinite loops.** Diff-hash tracking ensures the same changes aren't re-reviewed.
 
 ## Multi-Model Review
-
-Create specialized configs for different reviewers:
 
 ```bash
 echo '{"model":"gpt-4o","api_key":"sk-xxx","base_url":"https://api.openai.com/v1","focus":["security"]}' > .ireview-security.json
 echo '{"model":"deepseek-chat","api_key":"sk-xxx","base_url":"https://api.deepseek.com/v1","focus":["performance"]}' > .ireview-perf.json
 ```
 
-Run `/ireview --full` — security expert checks security, performance expert checks performance. Two models, two perspectives, one command.
+`/ireview:review --full` — runs all configs. Each produces its own review file.
 
-## Focus Options
+## Architecture
 
-| Focus | What it checks |
-|---|---|
-| `bugs` | Logic errors, off-by-one, null refs, race conditions |
-| `security` | Injection, auth bypass, secrets in code, SSRF |
-| `performance` | N+1 queries, unnecessary allocations, blocking I/O |
-| `architecture` | Coupling, responsibility leaks, API surface |
-| `types` | Type safety, null checks, implicit conversions |
-| `tests` | Missing coverage, untested edge cases |
+```
+hooks/stop-gate.sh     ← Fast. Checks diff, computes hash, blocks or allows. No API calls.
+scripts/call-api.py    ← Reliable. Constructs JSON safely, calls API, returns structured results.
+commands/*.md           ← Slash commands. Tell Claude what to do step by step.
+skills/ireview/SKILL.md ← Protocol. I-Lang behavioral rules for the review process.
+```
+
+API calls go through `call-api.py`, never through hand-written curl JSON. Diffs contain quotes, backslashes, and newlines that break manual JSON construction.
 
 ## Works Across Tools
 
-| Tool | Auto-reads | Hook support |
+| Tool | File | Hook support |
 |---|---|---|
-| Claude Code | `CLAUDE.md` | Full (stop gate, slash commands) |
+| Claude Code | `CLAUDE.md` | Full (stop gate + commands) |
 | Cursor | `.cursorrules` | Manual review only |
 | Codex | `AGENTS.md` | Manual review only |
 | Copilot | `.github/copilot-instructions.md` | Manual review only |
 | Gemini CLI | `GEMINI.md` | Manual review only |
 
-Non-CC tools don't have hook support, but manual `/ireview` commands work via natural language: "review my changes using the config in .ireview.json".
-
 ## Privacy
 
-Your code is sent to whatever API you configure. iReview itself collects nothing, stores nothing, phones home to nowhere. If privacy matters, use local Ollama — your code never leaves your machine.
+Your code goes to whatever API you configure. iReview collects nothing. For private code, use local Ollama.
+
+Add `.ireview.json` to `.gitignore` — it contains your API key.
 
 ## License
 

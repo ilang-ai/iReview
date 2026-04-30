@@ -1,7 +1,7 @@
 {
   "name": "ireview",
   "description": "Universal AI-to-AI code review. Any model reviews your code — DeepSeek, GPT, Gemini, Llama, or local Ollama. Zero dependencies. One JSON config.",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "author": {
     "name": "I-Lang Protocol"
   },

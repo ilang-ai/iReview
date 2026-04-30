@@ -3,5 +3,9 @@
   "api_key": "YOUR_API_KEY_HERE",
   "base_url": "https://openrouter.ai/api/v1",
   "focus": ["bugs", "security"],
-  "auto_review": false
+  "auto_review": false,
+  "timeout_sec": 120,
+  "max_diff_chars": 100000,
+  "exclude": ["package-lock.json", "*.min.js", "dist/**"],
+  "headers": {}
 }
