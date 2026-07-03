@@ -1,7 +1,7 @@
 ---
 name: ireview
 description: I-Lang powered AI-to-AI code review protocol. Route reviews to any model using structured I-Lang instructions.
-version: 0.1.0
+version: 0.2.0
 author: ilang-ai
 license: MIT
 tags:
@@ -15,7 +15,7 @@ tags:
 
 ## I-Lang AI-to-AI Code Review Protocol
 
-::GENE{ireview|v:0.1|spec:ilang-v3.0}
+::GENE{ireview|v:0.2|spec:ilang-v5.0}
   T:ai_to_ai_communication_via_ilang
   T:review_request_in_ilang_format
   T:review_response_in_ilang_format
@@ -37,24 +37,26 @@ When CC sends a review request to the external model, the system prompt is I-Lan
 ### Standard Review
 
 ```ilang
-[PROTOCOL:I-Lang|v=3.0]
+[PROTOCOL:I-Lang|v=5.0]
 
 [EVAL:@DIFF|focus={focus}|depth=thorough]
   =>[SCAN|whr=bugs,security,logic_errors]
+  =>[JUDGE|dims=consequence,reversibility,certainty,evidence]
   =>[CLSF|typ=severity]
   =>[FMT|fmt=ilang]
   =>[OUT]
 
 ::RULE{report:bugs,security,logic_errors,edge_cases}
 ::RULE{ignore:style,formatting,naming_conventions}
-::RULE{severity:critical|when:production_breakage|when:security_vulnerability|when:data_loss}
-::RULE{severity:warning|when:potential_bug|when:missing_edge_case|when:race_condition}
-::RULE{severity:info|when:minor_improvement}
+::JUDGE{protocol:ilang-v5.0}
+  # severity is judged, not keyword-matched: weigh consequence, reversibility,
+  # certainty, evidence. critical=high consequence + (irreversible or high certainty).
+  # low certainty downgrades. decision=fail only for an evidence-backed critical.
 ::RULE{if:no_issues|then:decision=pass}
 
 ::FMT{response}
   ::REVIEW{id:{timestamp}|model:{model}|decision:pass_or_fail}
-  ::FINDING{id:IR-NNN|severity:critical_or_warning_or_info|file:path|line:N}
+  ::FINDING{id:IR-NNN|severity:critical_or_warning_or_info|conf:0.0_to_1.0|file:path|line:N}
     issue: one line description
     fix: one line suggestion
   ::END{REVIEW}
@@ -63,10 +65,11 @@ When CC sends a review request to the external model, the system prompt is I-Lan
 ### Adversarial Review
 
 ```ilang
-[PROTOCOL:I-Lang|v=3.0]
+[PROTOCOL:I-Lang|v=5.0]
 
 [EVAL:@DIFF|focus={focus}|depth=adversarial]
   =>[SCAN|whr=assumptions,failure_modes,coupling,hidden_risks]
+  =>[JUDGE|dims=consequence,reversibility,certainty,evidence]
   =>[CLSF|typ=severity]
   =>[FMT|fmt=ilang]
   =>[OUT]
@@ -75,14 +78,14 @@ When CC sends a review request to the external model, the system prompt is I-Lan
 ::RULE{challenge:design_decisions,assumptions,tradeoffs}
 ::RULE{probe:10x_load,malicious_input,implicit_coupling}
 ::RULE{suggest:simpler_alternatives}
-::RULE{severity:critical|when:will_break_production}
-::RULE{severity:challenge|when:design_needs_justification}
-::RULE{severity:alternative|when:simpler_approach_exists}
+::JUDGE{protocol:ilang-v5.0}
+  # judge across consequence/reversibility/certainty/evidence. speculative
+  # challenges carry low conf, not critical. decision=fail only for evidence-backed critical.
 ::RULE{if:genuinely_no_issues|then:decision=pass}
 
 ::FMT{response}
   ::REVIEW{id:{timestamp}|model:{model}|mode:adversarial|decision:pass_or_fail}
-  ::FINDING{id:IR-NNN|severity:critical_or_challenge_or_alternative|file:path|line:N}
+  ::FINDING{id:IR-NNN|severity:critical_or_challenge_or_alternative|conf:0.0_to_1.0|file:path|line:N}
     issue: one line description
     fix: one line suggestion
   ::END{REVIEW}
@@ -194,4 +197,4 @@ This is what AI-to-AI communication looks like.
 
 ---
 
-Powered by I-Lang v3.0 | ilang.ai
+Powered by I-Lang v5.0 | ilang.ai

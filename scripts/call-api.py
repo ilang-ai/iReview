@@ -17,37 +17,50 @@ import urllib.error
 
 SYSTEM_PROMPTS = {
     "standard": (
-        "[PROTOCOL:I-Lang|v=3.0]\n"
+        "[PROTOCOL:I-Lang|v=5.0]\n"
         "\n"
         "[EVAL:@DIFF|focus={focus}|depth=thorough]\n"
         "  =>[SCAN|whr=bugs,security,logic_errors]\n"
+        "  =>[JUDGE|dims=consequence,reversibility,certainty,evidence]\n"
         "  =>[CLSF|typ=severity]\n"
         "  =>[FMT|fmt=ilang]\n"
         "  =>[OUT]\n"
         "\n"
         "::RULE{{report:bugs,security,logic_errors,edge_cases}}\n"
         "::RULE{{ignore:style,formatting,naming_conventions}}\n"
-        "::RULE{{severity:critical|when:production_breakage|when:security_vulnerability|when:data_loss}}\n"
-        "::RULE{{severity:warning|when:potential_bug|when:missing_edge_case|when:race_condition}}\n"
-        "::RULE{{severity:info|when:minor_improvement}}\n"
+        "\n"
+        "::JUDGE{{protocol:ilang-v5.0}}\n"
+        "  # Do not assign severity by fixed keyword. Judge each finding across dimensions:\n"
+        "  # consequence  = how bad is the worst realistic outcome if unfixed\n"
+        "  # reversibility= how hard to recover once it hits (data loss = irreversible)\n"
+        "  # certainty    = how sure you are this is a real defect, not a false positive\n"
+        "  # evidence     = is it provable from the diff, or an assumption\n"
+        "  # Then map the judgment to a severity band:\n"
+        "  #   critical = high consequence AND (irreversible OR high certainty). Blocks the merge.\n"
+        "  #   warning  = real risk but recoverable, or consequence is moderate\n"
+        "  #   info     = minor; safe to ship, worth noting\n"
+        "  # Low certainty or assumption-only: downgrade, and say so in the issue line.\n"
+        "  # decision=fail ONLY if at least one critical stands on solid evidence.\n"
         "::RULE{{if:no_issues|then:decision=pass}}\n"
         "\n"
         "::FMT{{response}}\n"
         "  Respond ONLY in this exact format, no other text:\n"
         "\n"
         "  ::REVIEW{{id:TIMESTAMP|model:MODEL|decision:pass_or_fail}}\n"
-        "  ::FINDING{{id:IR-001|severity:critical_or_warning_or_info|file:path/to/file|line:N}}\n"
+        "  ::FINDING{{id:IR-001|severity:critical_or_warning_or_info|conf:0.0_to_1.0|file:path/to/file|line:N}}\n"
         "    issue: one line description\n"
         "    fix: one line suggestion\n"
         "  ::END{{REVIEW}}\n"
         "\n"
+        "  conf is your certainty this finding is real (0.00-1.00). Below 0.50, prefer warning over critical.\n"
         "  If no issues: ::REVIEW{{id:TIMESTAMP|model:MODEL|decision:pass}} LGTM ::END{{REVIEW}}"
     ),
     "adversarial": (
-        "[PROTOCOL:I-Lang|v=3.0]\n"
+        "[PROTOCOL:I-Lang|v=5.0]\n"
         "\n"
         "[EVAL:@DIFF|focus={focus}|depth=adversarial]\n"
         "  =>[SCAN|whr=assumptions,failure_modes,coupling,hidden_risks]\n"
+        "  =>[JUDGE|dims=consequence,reversibility,certainty,evidence]\n"
         "  =>[CLSF|typ=severity]\n"
         "  =>[FMT|fmt=ilang]\n"
         "  =>[OUT]\n"
@@ -56,20 +69,29 @@ SYSTEM_PROMPTS = {
         "::RULE{{challenge:design_decisions,assumptions,tradeoffs}}\n"
         "::RULE{{probe:10x_load,malicious_input,implicit_coupling,failure_without_recovery}}\n"
         "::RULE{{suggest:simpler_alternatives}}\n"
-        "::RULE{{severity:critical|when:will_break_production}}\n"
-        "::RULE{{severity:challenge|when:design_needs_justification}}\n"
-        "::RULE{{severity:alternative|when:simpler_approach_exists}}\n"
+        "\n"
+        "::JUDGE{{protocol:ilang-v5.0}}\n"
+        "  # Judge each finding across dimensions, do not use fixed keywords:\n"
+        "  # consequence (worst realistic outcome), reversibility (recoverability),\n"
+        "  # certainty (real risk vs speculative), evidence (provable vs assumed).\n"
+        "  # Map to a band:\n"
+        "  #   critical    = will break production on solid evidence. Blocks merge.\n"
+        "  #   challenge   = a design decision that needs justification (uncertain but material)\n"
+        "  #   alternative = a simpler/safer approach exists\n"
+        "  # Be adversarial but honest: speculative challenges carry low conf, not critical.\n"
+        "  # decision=fail ONLY for a critical backed by evidence.\n"
         "::RULE{{if:genuinely_no_issues|then:decision=pass}}\n"
         "\n"
         "::FMT{{response}}\n"
         "  Respond ONLY in this exact format, no other text:\n"
         "\n"
         "  ::REVIEW{{id:TIMESTAMP|model:MODEL|mode:adversarial|decision:pass_or_fail}}\n"
-        "  ::FINDING{{id:IR-001|severity:critical_or_challenge_or_alternative|file:path/to/file|line:N}}\n"
+        "  ::FINDING{{id:IR-001|severity:critical_or_challenge_or_alternative|conf:0.0_to_1.0|file:path/to/file|line:N}}\n"
         "    issue: one line description\n"
         "    fix: one line suggestion\n"
         "  ::END{{REVIEW}}\n"
         "\n"
+        "  conf is your certainty this finding is real (0.00-1.00).\n"
         "  If no issues: ::REVIEW{{id:TIMESTAMP|model:MODEL|decision:pass}} LGTM ::END{{REVIEW}}"
     ),
 }
@@ -132,10 +154,18 @@ def parse_ilang_response(content):
     if not result["findings"] and 'LGTM' in content.upper():
         result["decision"] = "pass"
 
-    # If we found a ::REVIEW but no findings and no LGTM, decision stays as parsed
+    # If we found a ::REVIEW but no explicit decision, judge from findings (v5.0):
+    # a critical only forces fail when its confidence is solid. Low-conf criticals
+    # (conf < 0.50) are treated as warnings for the pass/fail gate.
     if result["decision"] == "unknown" and result["findings"]:
-        has_critical = any(f.get("severity") == "critical" for f in result["findings"])
-        result["decision"] = "fail" if has_critical else "pass"
+        def solid_critical(f):
+            if f.get("severity") != "critical":
+                return False
+            try:
+                return float(f.get("conf", "1.0")) >= 0.50
+            except (TypeError, ValueError):
+                return True  # unspecified conf = treat as solid, fail-safe
+        result["decision"] = "fail" if any(solid_critical(f) for f in result["findings"]) else "pass"
 
     return result if review_match else None
 

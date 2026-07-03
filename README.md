@@ -6,7 +6,7 @@
 > I-Lang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms).
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v3.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 [![I-Lang L3](https://img.shields.io/badge/I--Lang-L3_Agent_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 
 ---
@@ -15,7 +15,7 @@
 
 Every AI-to-AI code review tool today sends English prose between models. "You are a senior code reviewer. Please review this diff..." — and the response is unstructured text that has to be guessed and parsed.
 
-iReview uses **I-Lang v3.0** as the communication protocol between models. Claude Code sends structured instructions:
+iReview uses **I-Lang v5.0** as the communication protocol between models. Claude Code sends structured instructions:
 
 ```ilang
 [EVAL:@DIFF|focus=security,bugs]=>[SCAN]=>[CLSF|typ=severity]=>[OUT]
@@ -25,7 +25,7 @@ The review model returns structured declarations:
 
 ```ilang
 ::REVIEW{id:20260430|model:deepseek-chat|decision:fail}
-::FINDING{id:IR-001|severity:critical|file:src/auth.ts|line:42}
+::FINDING{id:IR-001|severity:critical|conf:0.92|file:src/auth.ts|line:42}
   issue: JWT token accessed before validation
   fix: Add token.verify() before accessing claims
 ::END{REVIEW}
