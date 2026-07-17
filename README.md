@@ -54,7 +54,7 @@ Two AIs speaking a protocol. Not prose. Not guesswork. Parseable, repeatable, mo
 
 ```bash
 /plugin marketplace add ilang-ai/iReview
-/plugin install ireview@ilang-plugins
+/plugin install ireview@ireview-marketplace
 ```
 
 Create your config:
