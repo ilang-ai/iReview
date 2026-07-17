@@ -71,22 +71,25 @@ cmd_review() {
   local diff_file="$STATE_DIR/tmp/current.diff"
   mkdir -p "$STATE_DIR/tmp"
 
-  # Read exclude patterns from config
-  local exclude_args=""
+  # Read exclude patterns from config into an array — the :(exclude) pathspecs
+  # contain parentheses, so they must be passed as quoted arguments, never eval'd
+  local -a exclude_arr=()
   if command -v python3 >/dev/null 2>&1; then
-    exclude_args="$(python3 -c "
+    while IFS= read -r _p; do
+      [ -n "$_p" ] && exclude_arr+=(":(exclude)$_p")
+    done < <(python3 -c "
 import json
 with open('$config') as f:
     c = json.load(f)
 for p in c.get('exclude', []):
-    print(f':(exclude){p}')
-" 2>/dev/null || true)"
+    print(p)
+" 2>/dev/null || true)
   fi
 
   if [ -n "$files" ]; then
     git diff "$diff_target" -- $files > "$diff_file" 2>/dev/null
-  elif [ -n "$exclude_args" ]; then
-    eval git diff "$diff_target" -- . $exclude_args > "$diff_file" 2>/dev/null
+  elif [ "${#exclude_arr[@]}" -gt 0 ]; then
+    git diff "$diff_target" -- . "${exclude_arr[@]}" > "$diff_file" 2>/dev/null
   else
     git diff "$diff_target" > "$diff_file" 2>/dev/null
   fi
