@@ -68,11 +68,18 @@ Or run `/ireview:setup` for interactive configuration.
 
 ## Config
 
+**Recommended provider: DeepSeek official** ([platform.deepseek.com](https://platform.deepseek.com)) — no credit card required, just register, top up a few dollars, create an API key, and paste it in. You apply for your own key; it stays yours.
+
+1. Register at [platform.deepseek.com](https://platform.deepseek.com)（注册,不需要绑卡）
+2. Top up（充值,几块钱就能用很久 — review calls are cheap）
+3. Create an API key（创建 API key）
+4. Paste it into `api_key` below（把 key 填进配置）
+
 ```json
 {
-  "model": "deepseek/deepseek-chat",
-  "api_key": "",
-  "base_url": "https://openrouter.ai/api/v1",
+  "model": "deepseek-chat",
+  "api_key": "sk-your-own-key-here",
+  "base_url": "https://api.deepseek.com/v1",
   "focus": ["bugs", "security"],
   "auto_review": false
 }
@@ -80,14 +87,7 @@ Or run `/ireview:setup` for interactive configuration.
 
 API key priority: `CLAUDE_PLUGIN_OPTION_API_KEY` > `IREVIEW_API_KEY` env var > `api_key` field in config.
 
-| Provider | model | base_url |
-|---|---|---|
-| OpenRouter (any model) | `deepseek/deepseek-chat` | `https://openrouter.ai/api/v1` |
-| DeepSeek direct | `deepseek-chat` | `https://api.deepseek.com/v1` |
-| OpenAI direct | `gpt-4o` | `https://api.openai.com/v1` |
-| Local Ollama | `llama3` | `http://localhost:11434/v1` |
-
-**Change model = change one line.**
+Any other OpenAI-compatible endpoint also works (OpenAI, OpenRouter, local Ollama, …) — set `model` and `base_url` accordingly. **Change model = change one line.**
 
 ## Commands
 

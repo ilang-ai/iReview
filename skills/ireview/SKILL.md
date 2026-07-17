@@ -173,13 +173,15 @@ User sees human language. Models speak I-Lang. That's the protocol.
 
 ```json
 {
-  "model": "deepseek/deepseek-chat",
+  "model": "deepseek-chat",
   "api_key": "YOUR_KEY",
-  "base_url": "https://openrouter.ai/api/v1",
+  "base_url": "https://api.deepseek.com/v1",
   "focus": ["bugs", "security"],
   "auto_review": false
 }
 ```
+
+Recommended provider: DeepSeek official (platform.deepseek.com) — no card binding, user registers and fills their own key. Any OpenAI-compatible endpoint works.
 
 ## Multi-Model Review
 

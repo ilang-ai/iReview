@@ -171,7 +171,7 @@ def parse_ilang_response(content):
 
 
 def call_api(config, system_prompt, diff_content):
-    base_url = config.get("base_url", "https://openrouter.ai/api/v1").rstrip("/")
+    base_url = config.get("base_url", "https://api.deepseek.com/v1").rstrip("/")
     api_key = (
         os.environ.get("CLAUDE_PLUGIN_OPTION_API_KEY")
         or os.environ.get(config.get("api_key_env", ""), "")
