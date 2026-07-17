@@ -1,6 +1,6 @@
 {
   "name": "ireview",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AI-to-AI code review router. Any OpenAI-compatible model reviews your code. No Codex CLI or Node.js required.",
   "author": {
     "name": "I-Lang Protocol",
