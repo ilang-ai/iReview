@@ -1,6 +1,6 @@
 ---
 name: ireview
-description: I-Lang powered AI-to-AI code review protocol. Route reviews to any model using structured I-Lang instructions.
+description: I-Lang powered AI-to-AI code review protocol. Route reviews to any OpenAI-compatible model using structured I-Lang instructions.
 version: 0.2.0
 author: ilang-ai
 license: MIT
@@ -39,16 +39,17 @@ When CC sends a review request to the external model, the system prompt is I-Lan
 ```ilang
 [PROTOCOL:I-Lang|v=5.0]
 
-[EVAL:@DIFF|focus={focus}|depth=thorough]
+[EVAL:@DIFF|whr={focus}]
   =>[SCAN|whr=bugs,security,logic_errors]
-  =>[JUDGE|dims=consequence,reversibility,certainty,evidence]
+  =>[EVAL|whr=consequence,reversibility,certainty,evidence]
   =>[CLSF|typ=severity]
   =>[FMT|fmt=ilang]
   =>[OUT]
 
 ::RULE{report:bugs,security,logic_errors,edge_cases}
 ::RULE{ignore:style,formatting,naming_conventions}
-::JUDGE{protocol:ilang-v5.0}
+::RULE{depth:thorough}
+::RULE{severity:judged_across|dims:consequence,reversibility,certainty,evidence}
   # severity is judged, not keyword-matched: weigh consequence, reversibility,
   # certainty, evidence. critical=high consequence + (irreversible or high certainty).
   # low certainty downgrades. decision=fail only for an evidence-backed critical.
@@ -67,9 +68,9 @@ When CC sends a review request to the external model, the system prompt is I-Lan
 ```ilang
 [PROTOCOL:I-Lang|v=5.0]
 
-[EVAL:@DIFF|focus={focus}|depth=adversarial]
+[EVAL:@DIFF|whr={focus}]
   =>[SCAN|whr=assumptions,failure_modes,coupling,hidden_risks]
-  =>[JUDGE|dims=consequence,reversibility,certainty,evidence]
+  =>[EVAL|whr=consequence,reversibility,certainty,evidence]
   =>[CLSF|typ=severity]
   =>[FMT|fmt=ilang]
   =>[OUT]
@@ -78,7 +79,7 @@ When CC sends a review request to the external model, the system prompt is I-Lan
 ::RULE{challenge:design_decisions,assumptions,tradeoffs}
 ::RULE{probe:10x_load,malicious_input,implicit_coupling}
 ::RULE{suggest:simpler_alternatives}
-::JUDGE{protocol:ilang-v5.0}
+::RULE{severity:judged_across|dims:consequence,reversibility,certainty,evidence}
   # judge across consequence/reversibility/certainty/evidence. speculative
   # challenges carry low conf, not critical. decision=fail only for evidence-backed critical.
 ::RULE{if:genuinely_no_issues|then:decision=pass}

@@ -8,7 +8,7 @@
     {
       "name": "ireview",
       "source": ".",
-      "description": "Universal AI-to-AI code review. Any model, zero dependencies, one JSON config.",
+      "description": "AI-to-AI code review. Any OpenAI-compatible model, zero dependencies, one JSON config.",
       "version": "0.2.1"
     }
   ],

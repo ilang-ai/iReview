@@ -1,13 +1,13 @@
 # iReview
 
 > **AI-to-AI code review, powered by I-Lang protocol.**
-> Any model reviews your code. Structured instructions in, structured findings out.
+> Any OpenAI-compatible model reviews your code. Structured instructions in, structured findings out.
 >
 > I-Lang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms).
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
-[![I-Lang L3](https://img.shields.io/badge/I--Lang-L3_Agent_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
+[![Spec](https://img.shields.io/badge/spec-ilang.ai%2Fspec-d4a858?style=flat-square)](https://ilang.ai/spec/)
 
 ---
 
@@ -18,7 +18,7 @@ Every AI-to-AI code review tool today sends English prose between models. "You a
 iReview uses **I-Lang v5.0** as the communication protocol between models. Claude Code sends structured instructions:
 
 ```ilang
-[EVAL:@DIFF|focus=security,bugs]=>[SCAN]=>[CLSF|typ=severity]=>[OUT]
+[EVAL:@DIFF|whr=security,bugs]=>[SCAN]=>[CLSF|typ=severity]=>[OUT]
 ```
 
 The review model returns structured declarations:
@@ -31,7 +31,7 @@ The review model returns structured declarations:
 ::END{REVIEW}
 ```
 
-Two AIs speaking a protocol. Not prose. Not guesswork. Parseable, repeatable, model-agnostic.
+Two AIs speaking a protocol. Not prose. Not guesswork. Parseable, repeatable.
 
 | | iReview | codex-plugin-cc |
 |---|---|---|
