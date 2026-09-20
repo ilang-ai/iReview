@@ -8,6 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 [![Spec](https://img.shields.io/badge/spec-ilang.ai%2Fspec-d4a858?style=flat-square)](https://ilang.ai/spec/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22865158.svg)](https://doi.org/10.5281/zenodo.22865158)
 
 ---
 
@@ -154,6 +155,10 @@ The key insight: API calls go through `call-api.py` which sends I-Lang instructi
 Your code goes to whatever API you configure. iReview collects nothing. For private code, use local Ollama.
 
 Add `.ireview.json` to `.gitignore` — it contains your API key.
+
+## Citation
+
+[CITATION.cff](CITATION.cff); Zenodo archives each release. Concept DOI [10.5281/zenodo.22865158](https://doi.org/10.5281/zenodo.22865158) (all versions).
 
 ## License
 
