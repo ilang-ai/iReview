@@ -1,0 +1,37 @@
+{
+  "title": "iReview: AI-to-AI code review with I-Lang v5.0 vector judgment",
+  "description": "<p>iReview replaces English prose between models with a protocol. The calling agent sends an I-Lang operation chain describing what to review, and the reviewing model returns I-Lang declarations: one record per finding with file, line, severity and confidence. Severity comes from the v5.0 judgment vector rather than keyword matching. It works with any OpenAI-compatible model, supports standard and adversarial modes and multi-model chains, and needs only Git, Bash and Python 3.</p>",
+  "version": "0.2.1",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Zhu, Long Quan",
+      "orcid": "0009-0004-4540-8082",
+      "affiliation": "iLang Inc."
+    }
+  ],
+  "keywords": [
+    "code review",
+    "AI-to-AI",
+    "I-Lang",
+    "judgment vector",
+    "LLM",
+    "structured output"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/ilang-ai/iReview",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://ilang.ai/spec/",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-technicalnote",
+      "scheme": "url"
+    }
+  ]
+}
