@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use iReview, please cite it as below."
+title: "iReview: AI-to-AI code review with I-Lang v5.0 vector judgment"
+abstract: >-
+  iReview replaces English prose between models with a protocol. The calling
+  agent sends an I-Lang operation chain describing what to review, and the
+  reviewing model returns I-Lang declarations: one record per finding with
+  file, line, severity and confidence. Severity comes from the v5.0 judgment
+  vector rather than keyword matching. It works with any OpenAI-compatible
+  model, supports standard and adversarial modes and multi-model chains, and
+  needs only Git, Bash and Python 3.
+type: software
+authors:
+  - given-names: "Long Quan"
+    family-names: "Zhu"
+    orcid: "https://orcid.org/0009-0004-4540-8082"
+    affiliation: "iLang Inc."
+repository-code: "https://github.com/ilang-ai/iReview"
+url: "https://github.com/ilang-ai/iReview"
+license: MIT
+version: "0.2.1"
+date-released: "2026-09-21"
+keywords:
+  - code review
+  - AI-to-AI
+  - I-Lang
+  - judgment vector
+  - LLM
+  - structured output
